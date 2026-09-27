@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DB Inspector</title>
+<meta name="description" content="Inspect the SQLite database inside any Android or iPhone app you're debugging — live, on the device.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --canvas:#F2F0ED; --surface:#FFFFFF; --surface-alt:#FAF9F7; --surface-sunk:#F7F5F2;
+  --border:#E6E3DE; --border-soft:#EEEBE6;
+  --text:#1C1A17; --muted:#6D6962;
+  --accent:#E0392B; --accent-text:#D02C1E; --accent-strong:#DF3426; --on-accent:#FFFFFF;
+  --accent-subtle:#FDECEA;
+  --track:#ECEAE6;
+  --shadow:0 1px 2px rgba(28,26,23,.06), 0 12px 32px -20px rgba(28,26,23,.22);
+  --good:#1baf7a;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --canvas:#191817; --surface:#212020; --surface-alt:#262524; --surface-sunk:#1B1A19;
+    --border:#302E2C; --border-soft:#2A2927;
+    --text:#EDEAE5; --muted:#9A948C;
+    --accent:#F2564A; --accent-text:#F3685D; --accent-strong:#E82011; --on-accent:#FFFFFF;
+    --accent-subtle:#3E2826;
+    --track:#2B2A28;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -20px rgba(0,0,0,.75);
+    --good:#199e70;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --canvas:#191817; --surface:#212020; --surface-alt:#262524; --surface-sunk:#1B1A19;
+  --border:#302E2C; --border-soft:#2A2927;
+  --text:#EDEAE5; --muted:#9A948C;
+  --accent:#F2564A; --accent-text:#F3685D; --accent-strong:#E82011; --on-accent:#FFFFFF;
+  --accent-subtle:#3E2826;
+  --track:#2B2A28;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -20px rgba(0,0,0,.75);
+  --good:#199e70;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--canvas);color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  padding-inline:20px;
+}
+p{margin:0}
+code,.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace}
+h1,h2,h3{text-wrap:balance;margin:0}
+.container{max-width:1080px;margin:0 auto}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---- nav ---- */
+.nav{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+  background:color-mix(in srgb, var(--canvas) 88%, transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.nav__row{display:flex;align-items:center;gap:18px;padding-block:14px;max-width:1080px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--text)}
+.brand .logo{
+  width:30px;height:30px;border-radius:9px;background:var(--accent);flex:none;
+  display:grid;place-items:center;
+}
+.brand .name{font-size:15px;font-weight:700;letter-spacing:-.01em;line-height:1.1}
+.navlinks{display:flex;align-items:center;gap:22px;margin-left:20px}
+.navlinks a{color:var(--muted);text-decoration:none;font-size:14px;font-weight:500}
+.navlinks a:hover{color:var(--text)}
+.nav__cta{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+/* ---- seletor de idioma ---- */
+.langsel{
+  font:inherit;font-size:13px;font-weight:600;height:32px;padding:0 28px 0 11px;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236D6962' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M4 6.5 8 10.5 12 6.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+}
+.langsel:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- botões ---- */
+.btn{
+  font:inherit;font-size:14px;font-weight:600;height:40px;padding:0 18px;cursor:pointer;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:9px;
+  display:inline-flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none;
+  transition:filter .12s, background .12s;
+}
+.btn:hover{background:var(--surface-alt)}
+.btn--primary{background:var(--accent-strong);border-color:var(--accent-strong);color:var(--on-accent)}
+.btn--primary:hover{filter:brightness(1.07)}
+.btn--sm{height:32px;padding:0 13px;font-size:13px;border-radius:8px}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- hero ---- */
+.hero{padding-block:64px 40px;display:grid;gap:40px}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--accent-text);margin:0 0 16px;
+}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.hero h1{font-size:clamp(32px,5vw,52px);font-weight:800;letter-spacing:-.03em;line-height:1.05;max-width:18ch}
+.hero .lede{margin-top:18px;font-size:18px;color:var(--muted);max-width:52ch;line-height:1.6}
+.hero .ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.hero .fineprint{margin-top:14px;font-size:12.5px;color:var(--muted)}
+
+/* ---- demo card (recorte real do app) ---- */
+.demo{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.demo__bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.demo__dots{display:flex;gap:6px}
+.demo__dots span{width:9px;height:9px;border-radius:50%;background:var(--track)}
+.demo__path{margin-left:auto;font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace}
+.demo__body{display:grid;grid-template-columns:200px 1fr}
+.demo__tree{border-right:1px solid var(--border);padding:10px 8px;display:flex;flex-direction:column;gap:1px;background:var(--surface-alt)}
+.node{display:flex;align-items:center;gap:6px;height:28px;padding:0 7px;border-radius:6px;font-size:12.5px}
+.node--on{background:var(--accent-subtle);color:var(--accent-text);font-weight:600}
+.node--tbl{padding-left:18px;color:var(--muted)}
+.node--tbl.node--on{color:var(--accent-text)}
+.node svg{flex:none;color:currentColor;opacity:.85}
+.demo__grid{overflow:auto}
+table.dt{border-collapse:collapse;width:100%;font-size:12px}
+table.dt th{
+  position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);
+  text-align:left;padding:8px 12px;font-weight:600;white-space:nowrap;
+}
+table.dt td{
+  padding:0 12px;height:32px;border-bottom:1px solid var(--border-soft);font-family:"JetBrains Mono",monospace;
+  white-space:nowrap;
+}
+table.dt tr:nth-child(even) td{background:var(--surface-alt)}
+table.dt td.n{text-align:right;color:var(--muted)}
+table.dt td.null{font-family:Inter,sans-serif;font-style:italic;color:var(--muted)}
+.tag{font-family:"JetBrains Mono",monospace;font-size:8.5px;font-weight:600;padding:1px 5px;border-radius:4px;background:var(--track);color:var(--muted);margin-left:6px}
+
+/* ---- seções ---- */
+section{padding-block:64px}
+.sechead{max-width:640px;margin-bottom:40px}
+.sechead .eyebrow{margin-bottom:10px}
+.sechead h2{font-size:clamp(24px,3vw,32px);font-weight:750;letter-spacing:-.02em}
+.sechead p{margin-top:12px;color:var(--muted);font-size:16px}
+
+/* ---- vantagens ---- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.step{background:var(--surface);padding:26px 24px;display:flex;flex-direction:column;gap:10px}
+.step h3{font-size:15.5px;font-weight:650}
+.step p{color:var(--muted);font-size:13.5px;line-height:1.55}
+.step code{font-size:12px;background:var(--track);padding:1px 5px;border-radius:4px}
+
+/* ---- recursos ---- */
+.grid-features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feature{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.ic{
+  width:32px;height:32px;border-radius:9px;background:var(--track);display:grid;place-items:center;color:var(--accent-text);
+  flex:none;
+}
+.feature h3{font-size:15px;font-weight:650}
+.feature p{color:var(--muted);font-size:13.5px;line-height:1.55}
+.feature .pill{
+  align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:3px 8px;border-radius:999px;background:var(--track);color:var(--muted);
+}
+.feature .pill--pro{background:var(--accent-subtle);color:var(--accent-text)}
+
+/* ---- privacidade ---- */
+.privacy{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;
+  display:grid;grid-template-columns:1fr 1fr;gap:36px;
+}
+.privacy h2{font-size:26px;font-weight:750;letter-spacing:-.02em;max-width:16ch}
+.privacy .lede{color:var(--muted);margin-top:14px;font-size:15px;line-height:1.6}
+.netlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px}
+.netlist li{display:flex;gap:12px;align-items:flex-start;font-size:13.5px;line-height:1.55}
+.netlist .k{
+  flex:none;width:22px;height:22px;border-radius:6px;background:var(--good);color:#fff;margin-top:1px;
+  display:grid;place-items:center;
+}
+.netlist b{font-weight:650}
+.netlist span.d{color:var(--muted)}
+
+/* ---- preços ---- */
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.plan{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;
+  display:flex;flex-direction:column;gap:18px;
+}
+.plan--pro{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.plan__head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.plan__head h3{font-size:19px;font-weight:700}
+.plan__price{font-size:13px;color:var(--muted);font-weight:600}
+.plan ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:11px;flex:1}
+.plan li{display:flex;gap:10px;font-size:13.5px;line-height:1.5}
+.plan li svg{flex:none;margin-top:2px;color:var(--good)}
+.plan li.no svg{color:var(--muted)}
+.plan li.no{color:var(--muted)}
+
+/* ---- download ---- */
+.download{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:44px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.download h2{font-size:28px;font-weight:750;letter-spacing:-.02em}
+.download p{color:var(--muted);font-size:15px;margin-top:8px;max-width:46ch}
+.oschoice{display:inline-flex;background:var(--track);border-radius:999px;padding:3px;gap:2px;margin-top:24px}
+.oschoice button{
+  font:inherit;font-size:13px;font-weight:600;border:0;cursor:pointer;color:var(--muted);
+  background:transparent;padding:7px 18px;border-radius:999px;
+}
+.oschoice button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.oschoice button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.download .ctas{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.download .cmd{
+  margin-top:22px;font-family:"JetBrains Mono",monospace;font-size:12.5px;background:var(--surface-sunk);
+  border:1px solid var(--border-soft);border-radius:8px;padding:10px 16px;color:var(--muted);
+}
+.download .cmd b{color:var(--text);font-weight:500}
+
+/* ---- footer ---- */
+footer{border-top:1px solid var(--border);padding-block:32px 48px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer .brand .name{font-size:13.5px}
+footer .links{display:flex;gap:20px}
+footer .links a{color:var(--muted);text-decoration:none;font-size:13px}
+footer .links a:hover{color:var(--text)}
+footer .copy{color:var(--muted);font-size:12.5px;width:100%;order:3;margin-top:8px}
+
+@media (max-width:860px){
+  .navlinks{display:none}
+  .demo__body{grid-template-columns:1fr}
+  .demo__tree{display:none}
+  .steps{grid-template-columns:1fr}
+  .grid-features{grid-template-columns:1fr}
+  .privacy{grid-template-columns:1fr;padding:26px}
+  .plans{grid-template-columns:1fr}
+  .download{padding:28px 20px}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav__row container">
+    <a class="brand" href="#top">
+      <span class="logo">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.4">
+          <ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.24 2 5 2s5-.9 5-2V4"/><path d="M3 8c0 1.1 2.24 2 5 2s5-.9 5-2"/>
+        </svg>
+      </span>
+      <span class="name">DB Inspector</span>
+    </a>
+    <div class="navlinks">
+      <a href="#recursos" data-i18n="nav-recursos">Features</a>
+      <a href="#privacidade" data-i18n="nav-privacidade">Privacy</a>
+      <a href="#precos" data-i18n="nav-precos">Pricing</a>
+    </div>
+    <div class="nav__cta">
+      <select class="langsel" id="lang-select" aria-label="Language">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="it">Italiano</option>
+        <option value="zh">中文</option>
+      </select>
+      <a class="btn btn--sm" href="#baixar" data-i18n="nav-baixar">Download</a>
+    </div>
+  </div>
+</nav>
+
+<main id="top" class="container">
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow"><span class="dot"></span><span data-i18n="hero-eyebrow">For mobile app debugging</span></p>
+      <h1 data-i18n-html="hero-h1">The SQLite database inside your client's app, without leaving <code>adb</code></h1>
+      <p class="lede" data-i18n-html="hero-lede">Plug in the Android or the iPhone, open any database the app loads, and browse it
+        table by table — live, while the app runs. No copying the <code>.db</code> out, no DB Browser, no
+        <code>adb pull</code> every time a column changes.</p>
+      <div class="ctas">
+        <a class="btn btn--primary" href="#baixar" data-i18n="hero-cta-primary">Download for free</a>
+        <a class="btn" href="#precos" data-i18n="hero-cta-secondary">See what's in Pro</a>
+      </div>
+      <p class="fineprint" data-i18n="hero-fineprint">Windows and macOS · free plan, no signup · zero telemetry</p>
+    </div>
+
+    <div class="demo" id="demo-panel" role="img">
+      <div class="demo__bar">
+        <div class="demo__dots"><span></span><span></span><span></span></div>
+        <span class="demo__path">Motorola Moto G35 5G · /data/data/br.com.cliente.app</span>
+      </div>
+      <div class="demo__body">
+        <div class="demo__tree">
+          <div class="node"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.24 2 5 2s5-.9 5-2V4"/><path d="M3 8c0 1.1 2.24 2 5 2s5-.9 5-2"/></svg>db_app_v2.db</div>
+          <div class="node node--tbl">TB_Formulario</div>
+          <div class="node node--tbl node--on">TB_Indicador_Coleta</div>
+          <div class="node node--tbl">TB_Justificativa</div>
+          <div class="node node--tbl">TB_Loja_Complemento</div>
+          <div class="node" style="margin-top:6px"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.24 2 5 2s5-.9 5-2V4"/><path d="M3 8c0 1.1 2.24 2 5 2s5-.9 5-2"/></svg>db_sync_queue.db</div>
+        </div>
+        <div class="demo__grid">
+          <table class="dt">
+            <thead>
+              <tr>
+                <th>codIndicador<span class="tag">INT</span></th>
+                <th>desIndicador<span class="tag">TEXT</span></th>
+                <th>flObrigatorio<span class="tag">INT</span></th>
+                <th>codLoja<span class="tag">INT</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="n">1</td><td>PRODUTO</td><td class="n">1</td><td class="n">1042</td></tr>
+              <tr><td class="n">2</td><td>FOTO EXECUÇÃO</td><td class="n">1</td><td class="n">1042</td></tr>
+              <tr><td class="n">7</td><td>EVENTO</td><td class="n">1</td><td class="null">NULL</td></tr>
+              <tr><td class="n">11</td><td>GESTÃO DE RECURSOS</td><td class="n">1</td><td class="n">1043</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="vantagens">
+    <div class="sechead">
+      <p class="eyebrow"><span class="dot"></span><span data-i18n="vantagens-eyebrow">In practice</span></p>
+      <h2 data-i18n="vantagens-h2">The time you stop losing</h2>
+      <p data-i18n="vantagens-p">Less back-and-forth to find out what the app recorded, less guessing about where the bug lives.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 4v4.5l3 2"/><circle cx="8" cy="8" r="5.5"/></svg></span>
+        <h3 data-i18n="step1-h3">Fix it without asking for a screenshot</h3>
+        <p data-i18n="step1-p">See exactly what got written to the device in the middle of the bug, without waiting for
+          the user to reproduce it again for you.</p>
+      </div>
+      <div class="step">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5h5M9 5h5M2 11h5M9 11h5"/><circle cx="8" cy="5" r="1.6"/><circle cx="8" cy="11" r="1.6"/></svg></span>
+        <h3 data-i18n="step2-h3">Tell a local bug from a server bug</h3>
+        <p data-i18n="step2-p">Compare what the app stored in SQLite with what the API returned, with no
+          instrumentation — the answer is in the table.</p>
+      </div>
+      <div class="step">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2.5 13.5 5 5 13.5H2.5V11z"/></svg></span>
+        <h3 data-i18n="step3-h3">Fix a test value on the spot</h3>
+        <p data-i18n="step3-p">Edit the wrong cell and reproduce again, without reinstalling the app or repeating the
+          whole flow on the device.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="recursos">
+    <div class="sechead">
+      <p class="eyebrow"><span class="dot"></span><span data-i18n="recursos-eyebrow">Features</span></p>
+      <h2 data-i18n-html="recursos-h2">Built for people who live inside <code>adb logcat</code></h2>
+    </div>
+    <div class="grid-features">
+      <div class="feature">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1.6"/><path d="M2 7.5h12M5.5 4v9"/></svg></span>
+        <h3 data-i18n="feature1-h3">Android and iPhone, live</h3>
+        <p data-i18n-html="feature1-p">Connected device or a loose <code>.db</code> file — same screen, same shortcut to
+          rescan when the app writes something new.</p>
+      </div>
+      <div class="feature">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg></span>
+        <h3 data-i18n="feature2-h3">Read-only SQL, no risk</h3>
+        <p data-i18n="feature2-p">Virtualized grid, sticky header, every column's type on display. Free-form queries
+          for when a whole table isn't enough.</p>
+      </div>
+      <div class="feature">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13V8.5M6 13V5M10 13V9.5M14 13V3"/></svg></span>
+        <h3 data-i18n="feature3-h3">Count, filter and chart</h3>
+        <p data-i18n-html="feature3-p">Group by column, filter without writing <code>WHERE</code>, and turn a result
+          straight into a chart.</p>
+        <span class="pill pill--pro" data-i18n="pill-pro">Pro</span>
+      </div>
+      <div class="feature">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2.5 13.5 5 5 13.5H2.5V11z"/></svg></span>
+        <h3 data-i18n="feature4-h3">Cell editing</h3>
+        <p data-i18n="feature4-p">Fix a test value without reinstalling the app or repeating the whole flow on the device.</p>
+        <span class="pill pill--pro" data-i18n="pill-pro">Pro</span>
+      </div>
+      <div class="feature">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 8h3l2-4.5 2 9 2-4.5h2"/></svg></span>
+        <h3 data-i18n="feature5-h3">AI with one job</h3>
+        <p data-i18n="feature5-p">No file access, shell or network — every stock CLI runs boxed in to the database
+          tool only. It refuses the rest, even if asked.</p>
+      </div>
+      <div class="feature">
+        <span class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5A5.5 5.5 0 0 0 8 13.5z"/></svg></span>
+        <h3 data-i18n="feature6-h3">Light and dark</h3>
+        <p data-i18n="feature6-p">Follows the system theme or locks yours — both measured for the same contrast, not
+          just an inverted color.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacidade">
+    <div class="privacy">
+      <div>
+        <p class="eyebrow"><span class="dot"></span><span data-i18n="privacidade-eyebrow">Privacy</span></p>
+        <h2 data-i18n="privacidade-h2">Your client's database never leaves your machine</h2>
+        <p class="lede" data-i18n="privacidade-lede">Zero telemetry. File paths, table contents, package names — none of
+          it travels. The only four conversations with the network exist for the product, never for the data
+          you're inspecting.</p>
+      </div>
+      <ul class="netlist">
+        <li>
+          <span class="k"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg></span>
+          <span data-i18n-html="net-licenca"><b>License</b> — <span class="d">sends the key and the machine hash, only once you already have a saved license.</span></span>
+        </li>
+        <li>
+          <span class="k"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg></span>
+          <span data-i18n-html="net-update"><b>Update</b> — <span class="d">only downloads the signed installer for a new version.</span></span>
+        </li>
+        <li>
+          <span class="k"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg></span>
+          <span data-i18n-html="net-relato"><b>Error report</b> — <span class="d">the text passes through a scrubber that swaps paths, package names and databases for placeholders before it leaves.</span></span>
+        </li>
+        <li>
+          <span class="k"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg></span>
+          <span data-i18n-html="net-ia"><b>Installing an AI assistant</b> — <span class="d">downloads the vendor's official CLI, only on click, and checks its hash before running it.</span></span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="precos">
+    <div class="sechead">
+      <p class="eyebrow"><span class="dot"></span><span data-i18n="precos-eyebrow">Pricing</span></p>
+      <h2 data-i18n="precos-h2">Start free, go Pro when you need to write</h2>
+      <p data-i18n="precos-p">Free reads. Pro counts, filters, groups, charts and writes — on screen and through the AI.</p>
+    </div>
+    <div class="plans">
+      <div class="plan">
+        <div class="plan__head">
+          <h3 data-i18n="plan-free-title">Free</h3>
+          <span class="plan__price" data-i18n="plan-free-price">No cost</span>
+        </div>
+        <ul>
+          <li><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg><span data-i18n-html="plan-free-item1">Database and table tree, on-device or a loose <code>.db</code> file</span></li>
+          <li><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg><span data-i18n="plan-free-item2">Read-only grid and free-form read queries</span></li>
+          <li><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg><span data-i18n="plan-free-item3">Chat with the AI — it shows up to 10 rows from a table</span></li>
+          <li class="no"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m4 4 8 8M12 4l-8 8"/></svg><span data-i18n="plan-free-no1">No count, filter, grouping or charts</span></li>
+          <li class="no"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m4 4 8 8M12 4l-8 8"/></svg><span data-i18n="plan-free-no2">No writing — not on screen, not through the AI</span></li>
+        </ul>
+        <a class="btn" href="#baixar" data-i18n="hero-cta-primary">Download for free</a>
+      </div>
+      <div class="plan plan--pro">
+        <div class="plan__head">
+          <h3 data-i18n="plan-pro-title">Pro</h3>
+          <span class="plan__price" data-i18n="plan-pro-price">Monthly subscription</span>
+        </div>
+        <ul>
+          <li><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg><span data-i18n="plan-pro-item1">Everything in Free, with no row limit</span></li>
+          <li><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg><span data-i18n="plan-pro-item2">Count, filter, group and chart straight from the grid</span></li>
+          <li><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg><span data-i18n="plan-pro-item3">Cell editing and SQL writes</span></li>
+          <li><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5 6.5 12 13 4"/></svg><span data-i18n="plan-pro-item4">The AI writes too, when you let it</span></li>
+        </ul>
+        <a class="btn btn--primary" href="#baixar" data-i18n="plan-pro-cta">Subscribe to Pro</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="baixar">
+    <div class="download">
+      <h2 data-i18n="download-h2">Download DB Inspector</h2>
+      <p data-i18n="download-p">Native installer, no app store. The free plan already opens any database your
+        client's app loads.</p>
+
+      <div class="oschoice" role="group" aria-label="Operating system">
+        <button type="button" data-os-btn="win" aria-pressed="true">Windows</button>
+        <button type="button" data-os-btn="mac" aria-pressed="false">macOS</button>
+      </div>
+
+      <div class="ctas">
+        <a class="btn btn--primary" id="dl-btn" href="#">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 2.5v8M4.5 7l3.5 3.5L11.5 7"/><path d="M3 13.5h10"/></svg>
+          <span id="dl-label">Download for Windows</span>
+        </a>
+      </div>
+
+      <p class="cmd" id="dl-req">Requires <b>Windows 10</b> or newer · 64-bit</p>
+    </div>
+  </section>
+</main>
+
+<footer class="container">
+  <a class="brand" href="#top">
+    <span class="logo" style="width:24px;height:24px;border-radius:7px">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.5">
+        <ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.24 2 5 2s5-.9 5-2V4"/><path d="M3 8c0 1.1 2.24 2 5 2s5-.9 5-2"/>
+      </svg>
+    </span>
+    <span class="name">DB Inspector</span>
+  </a>
+  <div class="links">
+    <a href="#recursos" data-i18n="nav-recursos">Features</a>
+    <a href="#precos" data-i18n="nav-precos">Pricing</a>
+    <a href="#privacidade" data-i18n="nav-privacidade">Privacy</a>
+  </div>
+  <p class="copy" data-i18n="footer-copy">© 2026 DB Inspector. A tool for people who debug mobile apps.</p>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var SUPPORTED = ["en", "pt", "es", "fr", "de", "it", "zh"];
+  var STORAGE_KEY = "dbi-lang";
+
+  var T = {
+    en: {
+      "nav-recursos": "Features", "nav-privacidade": "Privacy", "nav-precos": "Pricing", "nav-baixar": "Download",
+      "hero-eyebrow": "For mobile app debugging",
+      "hero-h1": "The SQLite database inside your client's app, without leaving <code>adb</code>",
+      "hero-lede": "Plug in the Android or the iPhone, open any database the app loads, and browse it table by table — live, while the app runs. No copying the <code>.db</code> out, no DB Browser, no <code>adb pull</code> every time a column changes.",
+      "hero-cta-primary": "Download for free", "hero-cta-secondary": "See what's in Pro",
+      "hero-fineprint": "Windows and macOS · free plan, no signup · zero telemetry",
+      "demo-aria": "DB Inspector screenshot showing the TB_Indicador_Coleta table from a connected Android app",
+      "vantagens-eyebrow": "In practice", "vantagens-h2": "The time you stop losing",
+      "vantagens-p": "Less back-and-forth to find out what the app recorded, less guessing about where the bug lives.",
+      "step1-h3": "Fix it without asking for a screenshot",
+      "step1-p": "See exactly what got written to the device in the middle of the bug, without waiting for the user to reproduce it again for you.",
+      "step2-h3": "Tell a local bug from a server bug",
+      "step2-p": "Compare what the app stored in SQLite with what the API returned, with no instrumentation — the answer is in the table.",
+      "step3-h3": "Fix a test value on the spot",
+      "step3-p": "Edit the wrong cell and reproduce again, without reinstalling the app or repeating the whole flow on the device.",
+      "recursos-eyebrow": "Features", "recursos-h2": "Built for people who live inside <code>adb logcat</code>",
+      "feature1-h3": "Android and iPhone, live",
+      "feature1-p": "Connected device or a loose <code>.db</code> file — same screen, same shortcut to rescan when the app writes something new.",
+      "feature2-h3": "Read-only SQL, no risk",
+      "feature2-p": "Virtualized grid, sticky header, every column's type on display. Free-form queries for when a whole table isn't enough.",
+      "feature3-h3": "Count, filter and chart",
+      "feature3-p": "Group by column, filter without writing <code>WHERE</code>, and turn a result straight into a chart.",
+      "feature4-h3": "Cell editing",
+      "feature4-p": "Fix a test value without reinstalling the app or repeating the whole flow on the device.",
+      "feature5-h3": "AI with one job",
+      "feature5-p": "No file access, shell or network — every stock CLI runs boxed in to the database tool only. It refuses the rest, even if asked.",
+      "feature6-h3": "Light and dark",
+      "feature6-p": "Follows the system theme or locks yours — both measured for the same contrast, not just an inverted color.",
+      "pill-pro": "Pro",
+      "privacidade-eyebrow": "Privacy", "privacidade-h2": "Your client's database never leaves your machine",
+      "privacidade-lede": "Zero telemetry. File paths, table contents, package names — none of it travels. The only four conversations with the network exist for the product, never for the data you're inspecting.",
+      "net-licenca": "<b>License</b> — <span class=\"d\">sends the key and the machine hash, only once you already have a saved license.</span>",
+      "net-update": "<b>Update</b> — <span class=\"d\">only downloads the signed installer for a new version.</span>",
+      "net-relato": "<b>Error report</b> — <span class=\"d\">the text passes through a scrubber that swaps paths, package names and databases for placeholders before it leaves.</span>",
+      "net-ia": "<b>Installing an AI assistant</b> — <span class=\"d\">downloads the vendor's official CLI, only on click, and checks its hash before running it.</span>",
+      "precos-eyebrow": "Pricing", "precos-h2": "Start free, go Pro when you need to write",
+      "precos-p": "Free reads. Pro counts, filters, groups, charts and writes — on screen and through the AI.",
+      "plan-free-title": "Free", "plan-free-price": "No cost",
+      "plan-pro-title": "Pro", "plan-pro-price": "Monthly subscription",
+      "plan-free-item1": "Database and table tree, on-device or a loose <code>.db</code> file",
+      "plan-free-item2": "Read-only grid and free-form read queries",
+      "plan-free-item3": "Chat with the AI — it shows up to 10 rows from a table",
+      "plan-free-no1": "No count, filter, grouping or charts",
+      "plan-free-no2": "No writing — not on screen, not through the AI",
+      "plan-pro-item1": "Everything in Free, with no row limit",
+      "plan-pro-item2": "Count, filter, group and chart straight from the grid",
+      "plan-pro-item3": "Cell editing and SQL writes",
+      "plan-pro-item4": "The AI writes too, when you let it",
+      "plan-pro-cta": "Subscribe to Pro",
+      "download-h2": "Download DB Inspector",
+      "download-p": "Native installer, no app store. The free plan already opens any database your client's app loads.",
+      "download-os-aria": "Operating system",
+      "dl-label-win": "Download for Windows", "dl-label-mac": "Download for macOS",
+      "dl-req-win": "Requires <b>Windows 10</b> or newer · 64-bit",
+      "dl-req-mac": "Requires <b>macOS 12</b> (Monterey) or newer · Apple Silicon and Intel",
+      "footer-copy": "© 2026 DB Inspector. A tool for people who debug mobile apps.",
+      "lang-aria": "Language"
+    },
+    pt: {
+      "nav-recursos": "Recursos", "nav-privacidade": "Privacidade", "nav-precos": "Preços", "nav-baixar": "Baixar",
+      "hero-eyebrow": "Para quem debuga apps mobile",
+      "hero-h1": "O SQLite dentro do app do seu cliente, sem sair do <code>adb</code>",
+      "hero-lede": "Plugue o Android ou o iPhone, abra qualquer banco que o app carrega e navegue tabela por tabela — ao vivo, com o app rodando. Sem copiar o <code>.db</code> pra fora, sem DB Browser, sem <code>adb pull</code> toda vez que uma coluna muda.",
+      "hero-cta-primary": "Baixar grátis", "hero-cta-secondary": "Ver o que é Pro",
+      "hero-fineprint": "Windows e macOS · plano gratuito sem cadastro · zero telemetria",
+      "demo-aria": "Recorte do DB Inspector mostrando a tabela TB_Indicador_Coleta de um app Android conectado",
+      "vantagens-eyebrow": "Na prática", "vantagens-h2": "O tempo que você deixa de perder",
+      "vantagens-p": "Menos ida e volta pra descobrir o que o app gravou, menos suposição sobre onde o bug mora.",
+      "step1-h3": "Resolve sem pedir print",
+      "step1-p": "Vê exatamente o que ficou gravado no aparelho no meio do bug, sem esperar o usuário reproduzir o problema de novo pra você.",
+      "step2-h3": "Decide se o bug é local ou do servidor",
+      "step2-p": "Compara o que o app guardou no SQLite com o que a API devolveu, sem instrumentar nada — a resposta está na tabela.",
+      "step3-h3": "Corrige um dado de teste na hora",
+      "step3-p": "Edita a célula errada e reproduz de novo sem reinstalar o app nem repetir o fluxo inteiro no aparelho.",
+      "recursos-eyebrow": "Recursos", "recursos-h2": "Feito pra quem já vive dentro do <code>adb logcat</code>",
+      "feature1-h3": "Android e iPhone, ao vivo",
+      "feature1-p": "Aparelho plugado ou arquivo <code>.db</code> solto — a mesma tela, o mesmo atalho pra reescanear quando o app grava algo novo.",
+      "feature2-h3": "SQL de leitura, sem risco",
+      "feature2-p": "Grade virtualizada, cabeçalho fixo, tipo de cada coluna à mostra. Consulta livre pra quem quer ir além da tabela inteira.",
+      "feature3-h3": "Contagem, filtro e gráfico",
+      "feature3-p": "Agrupe por coluna, filtre sem escrever <code>WHERE</code> e vire o resultado em gráfico direto da grade.",
+      "feature4-h3": "Edição de célula",
+      "feature4-p": "Corrige um valor de teste sem reinstalar o app nem repetir o fluxo inteiro no aparelho.",
+      "feature5-h3": "IA com uma finalidade só",
+      "feature5-p": "Sem arquivo, shell ou rede — cada CLI de fábrica entra capado pra só a ferramenta de banco. Recusa o resto, mesmo se pedirem.",
+      "feature6-h3": "Claro e escuro",
+      "feature6-p": "Segue o tema do sistema ou fixa o seu — os dois com o mesmo contraste medido, não só a cor invertida.",
+      "pill-pro": "Pro",
+      "privacidade-eyebrow": "Privacidade", "privacidade-h2": "O banco do cliente não sai da sua máquina",
+      "privacidade-lede": "Zero telemetria. Caminho de arquivo, conteúdo de tabela, nome de pacote — nada disso viaja. As únicas quatro conversas com a rede existem pelo produto, nunca pelo dado que você está inspecionando.",
+      "net-licenca": "<b>Licença</b> — <span class=\"d\">manda a chave e o hash da máquina, só quando você já tem uma licença guardada.</span>",
+      "net-update": "<b>Atualização</b> — <span class=\"d\">só baixa o instalador assinado da versão nova.</span>",
+      "net-relato": "<b>Relato de erro</b> — <span class=\"d\">o texto passa por um limpador que troca caminho, pacote e banco por marcadores antes de sair.</span>",
+      "net-ia": "<b>Instalar um assistente de IA</b> — <span class=\"d\">baixa o CLI oficial do fornecedor, só ao clicar, e confere o hash antes de rodar.</span>",
+      "precos-eyebrow": "Preços", "precos-h2": "Comece de graça, vire Pro quando precisar escrever",
+      "precos-p": "O gratuito lê. O Pro conta, filtra, agrupa, gráfica e escreve — na tela e pela IA.",
+      "plan-free-title": "Gratuito", "plan-free-price": "Sem custo",
+      "plan-pro-title": "Pro", "plan-pro-price": "assinatura mensal",
+      "plan-free-item1": "Árvore de bancos e tabelas, dispositivo ou arquivo <code>.db</code>",
+      "plan-free-item2": "Grade de leitura e SQL de leitura livre",
+      "plan-free-item3": "Conversa com a IA — ela mostra até 10 linhas de uma tabela",
+      "plan-free-no1": "Sem contagem, filtro, agrupamento ou gráfico",
+      "plan-free-no2": "Sem escrita — nem na tela, nem pela IA",
+      "plan-pro-item1": "Tudo do gratuito, sem teto de linhas",
+      "plan-pro-item2": "Contagem, filtro, agrupamento e gráfico direto da grade",
+      "plan-pro-item3": "Edição de célula e escrita por SQL",
+      "plan-pro-item4": "A IA também escreve, quando você deixar",
+      "plan-pro-cta": "Assinar o Pro",
+      "download-h2": "Baixe o DB Inspector",
+      "download-p": "Instalador nativo, sem loja de aplicativos. O plano gratuito já abre qualquer banco que o app do seu cliente carregar.",
+      "download-os-aria": "Sistema operacional",
+      "dl-label-win": "Baixar para Windows", "dl-label-mac": "Baixar para macOS",
+      "dl-req-win": "Requer <b>Windows 10</b> ou mais recente · 64-bit",
+      "dl-req-mac": "Requer <b>macOS 12</b> (Monterey) ou mais recente · Apple Silicon e Intel",
+      "footer-copy": "© 2026 DB Inspector. Ferramenta pra quem depura apps mobile.",
+      "lang-aria": "Idioma"
+    },
+    es: {
+      "nav-recursos": "Funciones", "nav-privacidade": "Privacidad", "nav-precos": "Precios", "nav-baixar": "Descargar",
+      "hero-eyebrow": "Para quien depura apps móviles",
+      "hero-h1": "La base SQLite dentro de la app de tu cliente, sin salir de <code>adb</code>",
+      "hero-lede": "Conecta el Android o el iPhone, abre cualquier base que la app cargue y navégala tabla por tabla — en vivo, con la app en ejecución. Sin copiar el <code>.db</code>, sin DB Browser, sin <code>adb pull</code> cada vez que cambia una columna.",
+      "hero-cta-primary": "Descargar gratis", "hero-cta-secondary": "Ver qué incluye Pro",
+      "hero-fineprint": "Windows y macOS · plan gratuito sin registro · cero telemetría",
+      "demo-aria": "Captura de DB Inspector mostrando la tabla TB_Indicador_Coleta de una app Android conectada",
+      "vantagens-eyebrow": "En la práctica", "vantagens-h2": "El tiempo que dejas de perder",
+      "vantagens-p": "Menos idas y vueltas para saber qué registró la app, menos suposiciones sobre dónde vive el error.",
+      "step1-h3": "Resuélvelo sin pedir una captura",
+      "step1-p": "Ve exactamente lo que se grabó en el dispositivo en medio del error, sin esperar a que el usuario lo reproduzca de nuevo para ti.",
+      "step2-h3": "Distingue un error local de uno del servidor",
+      "step2-p": "Compara lo que la app guardó en SQLite con lo que devolvió la API, sin instrumentar nada — la respuesta está en la tabla.",
+      "step3-h3": "Corrige un valor de prueba al instante",
+      "step3-p": "Edita la celda equivocada y reproduce de nuevo, sin reinstalar la app ni repetir todo el flujo en el dispositivo.",
+      "recursos-eyebrow": "Funciones", "recursos-h2": "Hecho para quienes viven dentro de <code>adb logcat</code>",
+      "feature1-h3": "Android e iPhone, en vivo",
+      "feature1-p": "Dispositivo conectado o un archivo <code>.db</code> suelto — la misma pantalla, el mismo atajo para volver a escanear cuando la app graba algo nuevo.",
+      "feature2-h3": "SQL de solo lectura, sin riesgo",
+      "feature2-p": "Grilla virtualizada, encabezado fijo, el tipo de cada columna a la vista. Consultas libres para cuando una tabla entera no basta.",
+      "feature3-h3": "Conteo, filtro y gráfico",
+      "feature3-p": "Agrupa por columna, filtra sin escribir <code>WHERE</code> y convierte el resultado en un gráfico directo desde la grilla.",
+      "feature4-h3": "Edición de celdas",
+      "feature4-p": "Corrige un valor de prueba sin reinstalar la app ni repetir todo el flujo en el dispositivo.",
+      "feature5-h3": "IA con un solo propósito",
+      "feature5-p": "Sin acceso a archivos, shell ni red — cada CLI de fábrica entra limitado solo a la herramienta de base de datos. Rechaza el resto, aunque se lo pidan.",
+      "feature6-h3": "Claro y oscuro",
+      "feature6-p": "Sigue el tema del sistema o fija el tuyo — ambos medidos para el mismo contraste, no solo un color invertido.",
+      "pill-pro": "Pro",
+      "privacidade-eyebrow": "Privacidad", "privacidade-h2": "La base de tu cliente nunca sale de tu máquina",
+      "privacidade-lede": "Cero telemetría. Rutas de archivo, contenido de tablas, nombres de paquete — nada de eso viaja. Las únicas cuatro conversaciones con la red existen por el producto, nunca por el dato que estás inspeccionando.",
+      "net-licenca": "<b>Licencia</b> — <span class=\"d\">envía la clave y el hash de la máquina, solo cuando ya tienes una licencia guardada.</span>",
+      "net-update": "<b>Actualización</b> — <span class=\"d\">solo descarga el instalador firmado de la versión nueva.</span>",
+      "net-relato": "<b>Reporte de error</b> — <span class=\"d\">el texto pasa por un limpiador que sustituye rutas, paquetes y bases por marcadores antes de salir.</span>",
+      "net-ia": "<b>Instalar un asistente de IA</b> — <span class=\"d\">descarga el CLI oficial del proveedor, solo al hacer clic, y verifica su hash antes de ejecutarlo.</span>",
+      "precos-eyebrow": "Precios", "precos-h2": "Empieza gratis, pasa a Pro cuando necesites escribir",
+      "precos-p": "El gratuito lee. El Pro cuenta, filtra, agrupa, grafica y escribe — en pantalla y a través de la IA.",
+      "plan-free-title": "Gratis", "plan-free-price": "Sin costo",
+      "plan-pro-title": "Pro", "plan-pro-price": "suscripción mensual",
+      "plan-free-item1": "Árbol de bases y tablas, en el dispositivo o desde un archivo <code>.db</code>",
+      "plan-free-item2": "Grilla de solo lectura y consultas de lectura libres",
+      "plan-free-item3": "Chatea con la IA — muestra hasta 10 filas de una tabla",
+      "plan-free-no1": "Sin conteo, filtro, agrupamiento ni gráficos",
+      "plan-free-no2": "Sin escritura — ni en pantalla, ni por la IA",
+      "plan-pro-item1": "Todo lo del gratuito, sin límite de filas",
+      "plan-pro-item2": "Conteo, filtro, agrupamiento y gráfico directo desde la grilla",
+      "plan-pro-item3": "Edición de celdas y escritura por SQL",
+      "plan-pro-item4": "La IA también escribe, cuando tú lo permitas",
+      "plan-pro-cta": "Suscribirse a Pro",
+      "download-h2": "Descarga DB Inspector",
+      "download-p": "Instalador nativo, sin tienda de apps. El plan gratuito ya abre cualquier base que cargue la app de tu cliente.",
+      "download-os-aria": "Sistema operativo",
+      "dl-label-win": "Descargar para Windows", "dl-label-mac": "Descargar para macOS",
+      "dl-req-win": "Requiere <b>Windows 10</b> o más reciente · 64-bit",
+      "dl-req-mac": "Requiere <b>macOS 12</b> (Monterey) o más reciente · Apple Silicon e Intel",
+      "footer-copy": "© 2026 DB Inspector. Una herramienta para quienes depuran apps móviles.",
+      "lang-aria": "Idioma"
+    },
+    fr: {
+      "nav-recursos": "Fonctionnalités", "nav-privacidade": "Confidentialité", "nav-precos": "Tarifs", "nav-baixar": "Télécharger",
+      "hero-eyebrow": "Pour le débogage d'applications mobiles",
+      "hero-h1": "La base SQLite dans l'appli de votre client, sans quitter <code>adb</code>",
+      "hero-lede": "Branchez l'Android ou l'iPhone, ouvrez n'importe quelle base que l'appli charge et parcourez-la table par table — en direct, pendant que l'appli tourne. Plus besoin de copier le <code>.db</code>, ni de DB Browser, ni d'<code>adb pull</code> à chaque colonne modifiée.",
+      "hero-cta-primary": "Télécharger gratuitement", "hero-cta-secondary": "Voir ce qu'offre Pro",
+      "hero-fineprint": "Windows et macOS · offre gratuite sans inscription · zéro télémétrie",
+      "demo-aria": "Aperçu de DB Inspector montrant la table TB_Indicador_Coleta d'une appli Android connectée",
+      "vantagens-eyebrow": "En pratique", "vantagens-h2": "Le temps que vous arrêtez de perdre",
+      "vantagens-p": "Moins d'allers-retours pour savoir ce que l'appli a enregistré, moins de suppositions sur l'origine du bug.",
+      "step1-h3": "Réglez le problème sans demander de capture d'écran",
+      "step1-p": "Voyez exactement ce qui a été écrit sur l'appareil au moment du bug, sans attendre que l'utilisateur le reproduise à nouveau pour vous.",
+      "step2-h3": "Distinguez un bug local d'un bug serveur",
+      "step2-p": "Comparez ce que l'appli a stocké dans SQLite avec ce que l'API a renvoyé, sans rien instrumenter — la réponse est dans la table.",
+      "step3-h3": "Corrigez une valeur de test sur-le-champ",
+      "step3-p": "Modifiez la mauvaise cellule et reproduisez à nouveau, sans réinstaller l'appli ni refaire tout le parcours sur l'appareil.",
+      "recursos-eyebrow": "Fonctionnalités", "recursos-h2": "Conçu pour ceux qui vivent dans <code>adb logcat</code>",
+      "feature1-h3": "Android et iPhone, en direct",
+      "feature1-p": "Appareil connecté ou simple fichier <code>.db</code> — le même écran, le même raccourci pour rescanner quand l'appli écrit du nouveau.",
+      "feature2-h3": "SQL en lecture seule, sans risque",
+      "feature2-p": "Grille virtualisée, en-tête fixe, le type de chaque colonne bien visible. Requêtes libres pour aller au-delà d'une table entière.",
+      "feature3-h3": "Comptage, filtre et graphique",
+      "feature3-p": "Groupez par colonne, filtrez sans écrire de <code>WHERE</code>, et transformez le résultat directement en graphique.",
+      "feature4-h3": "Édition de cellule",
+      "feature4-p": "Corrigez une valeur de test sans réinstaller l'appli ni refaire tout le parcours sur l'appareil.",
+      "feature5-h3": "Une IA avec un seul rôle",
+      "feature5-p": "Pas d'accès aux fichiers, au shell ni au réseau — chaque CLI d'origine tourne cantonné à l'outil de base de données. Elle refuse le reste, même si on le lui demande.",
+      "feature6-h3": "Clair et sombre",
+      "feature6-p": "Suit le thème du système ou fixe le vôtre — les deux calibrés pour le même contraste, pas juste une couleur inversée.",
+      "pill-pro": "Pro",
+      "privacidade-eyebrow": "Confidentialité", "privacidade-h2": "La base de votre client ne quitte jamais votre machine",
+      "privacidade-lede": "Zéro télémétrie. Chemins de fichiers, contenu des tables, noms de paquets — rien de tout cela ne circule. Les quatre seules communications réseau existent pour le produit, jamais pour la donnée que vous inspectez.",
+      "net-licenca": "<b>Licence</b> — <span class=\"d\">envoie la clé et l'empreinte de la machine, seulement si vous avez déjà une licence enregistrée.</span>",
+      "net-update": "<b>Mise à jour</b> — <span class=\"d\">ne télécharge que l'installeur signé d'une nouvelle version.</span>",
+      "net-relato": "<b>Rapport d'erreur</b> — <span class=\"d\">le texte passe par un nettoyeur qui remplace chemins, paquets et bases par des marqueurs avant de partir.</span>",
+      "net-ia": "<b>Installer un assistant IA</b> — <span class=\"d\">télécharge le CLI officiel de l'éditeur, uniquement sur clic, et vérifie son empreinte avant de l'exécuter.</span>",
+      "precos-eyebrow": "Tarifs", "precos-h2": "Commencez gratuitement, passez à Pro pour écrire",
+      "precos-p": "Le gratuit lit. Le Pro compte, filtre, groupe, trace des graphiques et écrit — à l'écran comme via l'IA.",
+      "plan-free-title": "Gratuit", "plan-free-price": "Sans frais",
+      "plan-pro-title": "Pro", "plan-pro-price": "abonnement mensuel",
+      "plan-free-item1": "Arborescence des bases et tables, sur l'appareil ou via un fichier <code>.db</code>",
+      "plan-free-item2": "Grille en lecture seule et requêtes de lecture libres",
+      "plan-free-item3": "Discutez avec l'IA — elle affiche jusqu'à 10 lignes d'une table",
+      "plan-free-no1": "Pas de comptage, de filtre, de regroupement ni de graphique",
+      "plan-free-no2": "Pas d'écriture — ni à l'écran, ni via l'IA",
+      "plan-pro-item1": "Tout ce qu'offre le gratuit, sans limite de lignes",
+      "plan-pro-item2": "Comptage, filtre, regroupement et graphique directement depuis la grille",
+      "plan-pro-item3": "Édition de cellule et écriture SQL",
+      "plan-pro-item4": "L'IA écrit aussi, quand vous le lui permettez",
+      "plan-pro-cta": "S'abonner à Pro",
+      "download-h2": "Téléchargez DB Inspector",
+      "download-p": "Installeur natif, sans store. L'offre gratuite ouvre déjà toute base que charge l'appli de votre client.",
+      "download-os-aria": "Système d'exploitation",
+      "dl-label-win": "Télécharger pour Windows", "dl-label-mac": "Télécharger pour macOS",
+      "dl-req-win": "Nécessite <b>Windows 10</b> ou plus récent · 64 bits",
+      "dl-req-mac": "Nécessite <b>macOS 12</b> (Monterey) ou plus récent · Apple Silicon et Intel",
+      "footer-copy": "© 2026 DB Inspector. Un outil pour ceux qui déboguent des applis mobiles.",
+      "lang-aria": "Langue"
+    },
+    de: {
+      "nav-recursos": "Funktionen", "nav-privacidade": "Datenschutz", "nav-precos": "Preise", "nav-baixar": "Herunterladen",
+      "hero-eyebrow": "Für das Debugging mobiler Apps",
+      "hero-h1": "Die SQLite-Datenbank in der App Ihres Kunden, ohne <code>adb</code> zu verlassen",
+      "hero-lede": "Android oder iPhone anschließen, jede Datenbank öffnen, die die App lädt, und Tabelle für Tabelle durchsehen — live, während die App läuft. Keine <code>.db</code> mehr kopieren, kein DB Browser, kein <code>adb pull</code> bei jeder Spaltenänderung.",
+      "hero-cta-primary": "Kostenlos herunterladen", "hero-cta-secondary": "Pro-Funktionen ansehen",
+      "hero-fineprint": "Windows und macOS · kostenloser Plan ohne Anmeldung · null Telemetrie",
+      "demo-aria": "Ausschnitt von DB Inspector mit der Tabelle TB_Indicador_Coleta einer verbundenen Android-App",
+      "vantagens-eyebrow": "In der Praxis", "vantagens-h2": "Die Zeit, die Sie nicht mehr verlieren",
+      "vantagens-p": "Weniger Hin und Her, um herauszufinden, was die App gespeichert hat, weniger Rätselraten, wo der Bug sitzt.",
+      "step1-h3": "Beheben, ohne nach einem Screenshot zu fragen",
+      "step1-p": "Sehen Sie genau, was mitten im Bug auf dem Gerät gespeichert wurde, ohne darauf zu warten, dass der Nutzer ihn für Sie noch einmal reproduziert.",
+      "step2-h3": "Lokalen Bug vom Server-Bug unterscheiden",
+      "step2-p": "Vergleichen Sie, was die App in SQLite gespeichert hat, mit dem, was die API zurückgegeben hat — ganz ohne Instrumentierung, die Antwort steht in der Tabelle.",
+      "step3-h3": "Testwert sofort korrigieren",
+      "step3-p": "Falsche Zelle bearbeiten und erneut reproduzieren, ohne die App neu zu installieren oder den ganzen Ablauf auf dem Gerät zu wiederholen.",
+      "recursos-eyebrow": "Funktionen", "recursos-h2": "Gemacht für alle, die in <code>adb logcat</code> leben",
+      "feature1-h3": "Android und iPhone, live",
+      "feature1-p": "Verbundenes Gerät oder eine einzelne <code>.db</code>-Datei — derselbe Bildschirm, derselbe Shortcut zum erneuten Scannen, wenn die App etwas Neues schreibt.",
+      "feature2-h3": "Nur-Lese-SQL, ohne Risiko",
+      "feature2-p": "Virtualisiertes Raster, fixierte Kopfzeile, der Typ jeder Spalte sichtbar. Freie Abfragen, wenn eine ganze Tabelle nicht reicht.",
+      "feature3-h3": "Zählen, filtern und Diagramme",
+      "feature3-p": "Nach Spalte gruppieren, filtern ohne <code>WHERE</code> zu schreiben, und das Ergebnis direkt in ein Diagramm verwandeln.",
+      "feature4-h3": "Zellenbearbeitung",
+      "feature4-p": "Testwert korrigieren, ohne die App neu zu installieren oder den ganzen Ablauf auf dem Gerät zu wiederholen.",
+      "feature5-h3": "KI mit nur einer Aufgabe",
+      "feature5-p": "Kein Datei-, Shell- oder Netzwerkzugriff — jede Standard-CLI läuft eingeschränkt nur auf das Datenbank-Tool. Sie lehnt den Rest ab, selbst wenn danach gefragt wird.",
+      "feature6-h3": "Hell und dunkel",
+      "feature6-p": "Folgt dem Systemthema oder legt Ihres fest — beide auf denselben gemessenen Kontrast abgestimmt, nicht nur eine invertierte Farbe.",
+      "pill-pro": "Pro",
+      "privacidade-eyebrow": "Datenschutz", "privacidade-h2": "Die Datenbank Ihres Kunden verlässt nie Ihren Rechner",
+      "privacidade-lede": "Null Telemetrie. Dateipfade, Tabelleninhalte, Paketnamen — nichts davon wird übertragen. Die einzigen vier Netzwerkverbindungen bestehen für das Produkt, nie für die Daten, die Sie gerade untersuchen.",
+      "net-licenca": "<b>Lizenz</b> — <span class=\"d\">sendet den Schlüssel und den Maschinen-Hash, aber nur, wenn bereits eine Lizenz gespeichert ist.</span>",
+      "net-update": "<b>Update</b> — <span class=\"d\">lädt nur den signierten Installer einer neuen Version herunter.</span>",
+      "net-relato": "<b>Fehlerbericht</b> — <span class=\"d\">der Text durchläuft einen Filter, der Pfade, Paketnamen und Datenbanken vor dem Versand durch Platzhalter ersetzt.</span>",
+      "net-ia": "<b>KI-Assistenten installieren</b> — <span class=\"d\">lädt die offizielle CLI des Anbieters nur bei Klick herunter und prüft den Hash vor der Ausführung.</span>",
+      "precos-eyebrow": "Preise", "precos-h2": "Kostenlos starten, zu Pro wechseln, wenn Sie schreiben müssen",
+      "precos-p": "Kostenlos liest. Pro zählt, filtert, gruppiert, visualisiert und schreibt — auf dem Bildschirm und über die KI.",
+      "plan-free-title": "Kostenlos", "plan-free-price": "Ohne Kosten",
+      "plan-pro-title": "Pro", "plan-pro-price": "monatliches Abo",
+      "plan-free-item1": "Baumstruktur aus Datenbanken und Tabellen, auf dem Gerät oder per <code>.db</code>-Datei",
+      "plan-free-item2": "Nur-Lese-Raster und freie Leseabfragen",
+      "plan-free-item3": "Chat mit der KI — sie zeigt bis zu 10 Zeilen einer Tabelle",
+      "plan-free-no1": "Kein Zählen, Filtern, Gruppieren oder Diagramme",
+      "plan-free-no2": "Kein Schreiben — weder am Bildschirm noch über die KI",
+      "plan-pro-item1": "Alles aus Kostenlos, ohne Zeilenlimit",
+      "plan-pro-item2": "Zählen, Filtern, Gruppieren und Diagramme direkt aus dem Raster",
+      "plan-pro-item3": "Zellenbearbeitung und SQL-Schreibzugriff",
+      "plan-pro-item4": "Die KI schreibt ebenfalls, wenn Sie es zulassen",
+      "plan-pro-cta": "Pro abonnieren",
+      "download-h2": "DB Inspector herunterladen",
+      "download-p": "Nativer Installer, kein App Store. Der kostenlose Plan öffnet bereits jede Datenbank, die die App Ihres Kunden lädt.",
+      "download-os-aria": "Betriebssystem",
+      "dl-label-win": "Für Windows herunterladen", "dl-label-mac": "Für macOS herunterladen",
+      "dl-req-win": "Erfordert <b>Windows 10</b> oder neuer · 64-Bit",
+      "dl-req-mac": "Erfordert <b>macOS 12</b> (Monterey) oder neuer · Apple Silicon und Intel",
+      "footer-copy": "© 2026 DB Inspector. Ein Werkzeug für alle, die mobile Apps debuggen.",
+      "lang-aria": "Sprache"
+    },
+    it: {
+      "nav-recursos": "Funzionalità", "nav-privacidade": "Privacy", "nav-precos": "Prezzi", "nav-baixar": "Scarica",
+      "hero-eyebrow": "Per il debug di app mobile",
+      "hero-h1": "Il database SQLite dentro l'app del tuo cliente, senza uscire da <code>adb</code>",
+      "hero-lede": "Collega l'Android o l'iPhone, apri qualsiasi database caricato dall'app e sfoglialo tabella per tabella — in tempo reale, con l'app in esecuzione. Niente più copia del <code>.db</code>, niente DB Browser, niente <code>adb pull</code> ogni volta che cambia una colonna.",
+      "hero-cta-primary": "Scarica gratis", "hero-cta-secondary": "Scopri cosa offre Pro",
+      "hero-fineprint": "Windows e macOS · piano gratuito senza registrazione · zero telemetria",
+      "demo-aria": "Anteprima di DB Inspector con la tabella TB_Indicador_Coleta di un'app Android connessa",
+      "vantagens-eyebrow": "Nella pratica", "vantagens-h2": "Il tempo che smetti di perdere",
+      "vantagens-p": "Meno andirivieni per scoprire cosa ha registrato l'app, meno supposizioni su dove si nasconde il bug.",
+      "step1-h3": "Risolvi senza chiedere uno screenshot",
+      "step1-p": "Vedi esattamente cosa è stato scritto sul dispositivo nel bel mezzo del bug, senza aspettare che l'utente lo riproduca di nuovo per te.",
+      "step2-h3": "Distingui un bug locale da uno del server",
+      "step2-p": "Confronta ciò che l'app ha salvato in SQLite con ciò che ha restituito l'API, senza strumentare nulla — la risposta è nella tabella.",
+      "step3-h3": "Correggi un valore di test all'istante",
+      "step3-p": "Modifica la cella sbagliata e riproduci di nuovo, senza reinstallare l'app né ripetere l'intero flusso sul dispositivo.",
+      "recursos-eyebrow": "Funzionalità", "recursos-h2": "Pensato per chi vive dentro <code>adb logcat</code>",
+      "feature1-h3": "Android e iPhone, in tempo reale",
+      "feature1-p": "Dispositivo collegato o un file <code>.db</code> isolato — la stessa schermata, la stessa scorciatoia per rianalizzare quando l'app scrive qualcosa di nuovo.",
+      "feature2-h3": "SQL di sola lettura, senza rischi",
+      "feature2-p": "Griglia virtualizzata, intestazione fissa, il tipo di ogni colonna in vista. Query libere per quando una tabella intera non basta.",
+      "feature3-h3": "Conteggio, filtro e grafico",
+      "feature3-p": "Raggruppa per colonna, filtra senza scrivere <code>WHERE</code> e trasforma il risultato direttamente in un grafico.",
+      "feature4-h3": "Modifica delle celle",
+      "feature4-p": "Correggi un valore di test senza reinstallare l'app né ripetere l'intero flusso sul dispositivo.",
+      "feature5-h3": "Un'IA con un solo compito",
+      "feature5-p": "Nessun accesso a file, shell o rete — ogni CLI di fabbrica gira confinata al solo strumento del database. Rifiuta il resto, anche se richiesto.",
+      "feature6-h3": "Chiaro e scuro",
+      "feature6-p": "Segue il tema di sistema o fissa il tuo — entrambi calibrati per lo stesso contrasto, non solo un colore invertito.",
+      "pill-pro": "Pro",
+      "privacidade-eyebrow": "Privacy", "privacidade-h2": "Il database del tuo cliente non lascia mai il tuo computer",
+      "privacidade-lede": "Zero telemetria. Percorsi dei file, contenuto delle tabelle, nomi dei pacchetti — niente di tutto ciò viaggia. Le uniche quattro comunicazioni di rete esistono per il prodotto, mai per il dato che stai esaminando.",
+      "net-licenca": "<b>Licenza</b> — <span class=\"d\">invia la chiave e l'hash della macchina, solo quando hai già una licenza salvata.</span>",
+      "net-update": "<b>Aggiornamento</b> — <span class=\"d\">scarica solo l'installer firmato di una nuova versione.</span>",
+      "net-relato": "<b>Segnalazione errori</b> — <span class=\"d\">il testo passa attraverso un filtro che sostituisce percorsi, pacchetti e database con segnaposto prima di essere inviato.</span>",
+      "net-ia": "<b>Installazione di un assistente IA</b> — <span class=\"d\">scarica la CLI ufficiale del fornitore solo al clic e ne verifica l'hash prima di eseguirla.</span>",
+      "precos-eyebrow": "Prezzi", "precos-h2": "Inizia gratis, passa a Pro quando devi scrivere",
+      "precos-p": "Il gratuito legge. Il Pro conta, filtra, raggruppa, crea grafici e scrive — a schermo e tramite l'IA.",
+      "plan-free-title": "Gratuito", "plan-free-price": "Senza costi",
+      "plan-pro-title": "Pro", "plan-pro-price": "abbonamento mensile",
+      "plan-free-item1": "Struttura ad albero di database e tabelle, su dispositivo o da file <code>.db</code>",
+      "plan-free-item2": "Griglia di sola lettura e query di lettura libere",
+      "plan-free-item3": "Chatta con l'IA — mostra fino a 10 righe di una tabella",
+      "plan-free-no1": "Niente conteggio, filtro, raggruppamento o grafici",
+      "plan-free-no2": "Niente scrittura — né a schermo, né tramite l'IA",
+      "plan-pro-item1": "Tutto ciò che offre il gratuito, senza limite di righe",
+      "plan-pro-item2": "Conteggio, filtro, raggruppamento e grafico direttamente dalla griglia",
+      "plan-pro-item3": "Modifica delle celle e scrittura via SQL",
+      "plan-pro-item4": "Anche l'IA scrive, quando glielo permetti",
+      "plan-pro-cta": "Abbonati a Pro",
+      "download-h2": "Scarica DB Inspector",
+      "download-p": "Installer nativo, senza app store. Il piano gratuito apre già qualsiasi database caricato dall'app del tuo cliente.",
+      "download-os-aria": "Sistema operativo",
+      "dl-label-win": "Scarica per Windows", "dl-label-mac": "Scarica per macOS",
+      "dl-req-win": "Richiede <b>Windows 10</b> o versioni successive · 64-bit",
+      "dl-req-mac": "Richiede <b>macOS 12</b> (Monterey) o versioni successive · Apple Silicon e Intel",
+      "footer-copy": "© 2026 DB Inspector. Uno strumento per chi fa il debug di app mobile.",
+      "lang-aria": "Lingua"
+    },
+    zh: {
+      "nav-recursos": "功能", "nav-privacidade": "隐私", "nav-precos": "价格", "nav-baixar": "下载",
+      "hero-eyebrow": "专为移动应用调试打造",
+      "hero-h1": "SQLite 数据库就在客户应用内部,不必离开 <code>adb</code>",
+      "hero-lede": "连接 Android 或 iPhone,打开应用加载的任意数据库,像浏览表格一样逐表查看——应用运行时实时更新。不用把 <code>.db</code> 复制出来,不用 DB Browser,列一变就得 <code>adb pull</code> 的日子也过去了。",
+      "hero-cta-primary": "免费下载", "hero-cta-secondary": "查看 Pro 功能",
+      "hero-fineprint": "支持 Windows 和 macOS · 免费版无需注册 · 零遥测",
+      "demo-aria": "DB Inspector 截图,显示已连接 Android 应用中的 TB_Indicador_Coleta 表",
+      "vantagens-eyebrow": "实际应用", "vantagens-h2": "帮你省下的时间",
+      "vantagens-p": "减少来回沟通去弄清应用记录了什么,减少对 bug 出处的猜测。",
+      "step1-h3": "无需截图也能解决问题",
+      "step1-p": "精确查看 bug 发生时设备上写入的内容,不用等用户再重现一次给你看。",
+      "step2-h3": "分清本地 bug 和服务器 bug",
+      "step2-p": "对比应用在 SQLite 中存的数据和 API 返回的数据,无需任何埋点——答案就在表里。",
+      "step3-h3": "当场修正测试数据",
+      "step3-p": "编辑错误的单元格后立即重新验证,不用重装应用,也不用在设备上重复整个流程。",
+      "recursos-eyebrow": "功能", "recursos-h2": "为常年泡在 <code>adb logcat</code> 里的人打造",
+      "feature1-h3": "Android 和 iPhone,实时查看",
+      "feature1-p": "连接设备或直接打开一个 <code>.db</code> 文件——同一个界面,同一个快捷键,应用写入新内容时一键重新扫描。",
+      "feature2-h3": "只读 SQL,零风险",
+      "feature2-p": "虚拟化表格、固定表头、每列类型一目了然。整表不够用时还能自由查询。",
+      "feature3-h3": "计数、筛选与图表",
+      "feature3-p": "按列分组、无需写 <code>WHERE</code> 即可筛选,还能把结果直接变成图表。",
+      "feature4-h3": "单元格编辑",
+      "feature4-p": "修正测试数据,不用重装应用,也不用在设备上重复整个流程。",
+      "feature5-h3": "只做一件事的 AI",
+      "feature5-p": "没有文件、Shell 或网络访问权限——每个原生 CLI 都被限制只能使用数据库工具,即使被要求也会拒绝其他操作。",
+      "feature6-h3": "浅色与深色",
+      "feature6-p": "跟随系统主题或固定你的选择——两种主题都按同一对比度标准校准,不只是颜色反转。",
+      "pill-pro": "Pro",
+      "privacidade-eyebrow": "隐私", "privacidade-h2": "客户的数据库永远不会离开你的电脑",
+      "privacidade-lede": "零遥测。文件路径、表内容、包名——这些都不会外传。仅有的四种网络通信都是为产品本身服务,绝不会涉及你正在查看的数据。",
+      "net-licenca": "<b>许可证</b> — <span class=\"d\">仅在你已保存许可证的情况下,发送密钥和机器哈希值。</span>",
+      "net-update": "<b>更新</b> — <span class=\"d\">只下载新版本的已签名安装包。</span>",
+      "net-relato": "<b>错误报告</b> — <span class=\"d\">文本在发出前会经过清理程序,把路径、包名和数据库替换为占位符。</span>",
+      "net-ia": "<b>安装 AI 助手</b> — <span class=\"d\">仅在点击时下载厂商官方 CLI,运行前会校验其哈希值。</span>",
+      "precos-eyebrow": "价格", "precos-h2": "免费开始,需要写入时再升级 Pro",
+      "precos-p": "免费版负责读取。Pro 版负责计数、筛选、分组、图表和写入——无论是在界面上还是通过 AI。",
+      "plan-free-title": "免费版", "plan-free-price": "无需付费",
+      "plan-pro-title": "Pro", "plan-pro-price": "按月订阅",
+      "plan-free-item1": "数据库和表的树形结构,支持设备或单独的 <code>.db</code> 文件",
+      "plan-free-item2": "只读表格和自由读取查询",
+      "plan-free-item3": "与 AI 对话——最多显示某个表的 10 行数据",
+      "plan-free-no1": "不支持计数、筛选、分组或图表",
+      "plan-free-no2": "不支持写入——界面上和 AI 都不行",
+      "plan-pro-item1": "免费版的一切,且无行数限制",
+      "plan-pro-item2": "直接在表格里计数、筛选、分组和绘图",
+      "plan-pro-item3": "单元格编辑和 SQL 写入",
+      "plan-pro-item4": "授权后 AI 也能写入数据",
+      "plan-pro-cta": "订阅 Pro",
+      "download-h2": "下载 DB Inspector",
+      "download-p": "原生安装包,无需应用商店。免费版已经可以打开客户应用加载的任意数据库。",
+      "download-os-aria": "操作系统",
+      "dl-label-win": "下载 Windows 版", "dl-label-mac": "下载 macOS 版",
+      "dl-req-win": "需要 <b>Windows 10</b> 或更新版本 · 64 位",
+      "dl-req-mac": "需要 <b>macOS 12</b>(Monterey)或更新版本 · 支持 Apple Silicon 和 Intel",
+      "footer-copy": "© 2026 DB Inspector。为调试移动应用的人打造的工具。",
+      "lang-aria": "语言"
+    }
+  };
+
+  var textNodes = document.querySelectorAll("[data-i18n]");
+  var htmlNodes = document.querySelectorAll("[data-i18n-html]");
+  var demoPanel = document.getElementById("demo-panel");
+  var langSelect = document.getElementById("lang-select");
+  var osButtons = document.querySelectorAll("[data-os-btn]");
+  var dlLabel = document.getElementById("dl-label");
+  var dlReq = document.getElementById("dl-req");
+  var oschoiceGroup = document.querySelector(".oschoice");
+
+  var currentLocale = "en";
+  var currentOs = "win";
+
+  function detectLocale() {
+    var langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || "en"];
+    for (var i = 0; i < langs.length; i++) {
+      var base = String(langs[i]).toLowerCase().split("-")[0];
+      if (SUPPORTED.indexOf(base) !== -1) return base;
+    }
+    return "en";
+  }
+
+  function getStoredLocale() {
+    try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
+  }
+  function setStoredLocale(loc) {
+    try { localStorage.setItem(STORAGE_KEY, loc); } catch (e) {}
+  }
+
+  function applyLocale(loc) {
+    if (!T[loc]) loc = "en";
+    currentLocale = loc;
+    var dict = T[loc];
+
+    textNodes.forEach(function (el) {
+      var key = el.getAttribute("data-i18n");
+      if (dict[key] !== undefined) el.textContent = dict[key];
+    });
+    htmlNodes.forEach(function (el) {
+      var key = el.getAttribute("data-i18n-html");
+      if (dict[key] !== undefined) el.innerHTML = dict[key];
+    });
+
+    if (demoPanel && dict["demo-aria"]) demoPanel.setAttribute("aria-label", dict["demo-aria"]);
+    if (oschoiceGroup && dict["download-os-aria"]) oschoiceGroup.setAttribute("aria-label", dict["download-os-aria"]);
+    if (langSelect && dict["lang-aria"]) langSelect.setAttribute("aria-label", dict["lang-aria"]);
+    if (langSelect) langSelect.value = loc;
+
+    document.documentElement.setAttribute("lang", loc);
+    applyOs(currentOs);
+  }
+
+  function applyOs(os) {
+    currentOs = os;
+    var dict = T[currentLocale] || T.en;
+    osButtons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-os-btn") === os));
+    });
+    if (dlLabel) dlLabel.textContent = dict["dl-label-" + os];
+    if (dlReq) dlReq.innerHTML = dict["dl-req-" + os];
+  }
+
+  osButtons.forEach(function (b) {
+    b.addEventListener("click", function () { applyOs(b.getAttribute("data-os-btn")); });
+  });
+
+  if (langSelect) {
+    langSelect.addEventListener("change", function () {
+      setStoredLocale(langSelect.value);
+      applyLocale(langSelect.value);
+    });
+  }
+
+  var initialLocale = getStoredLocale();
+  if (!initialLocale || SUPPORTED.indexOf(initialLocale) === -1) initialLocale = detectLocale();
+
+  var initialOs = "win";
+  try {
+    if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) initialOs = "mac";
+  } catch (e) {}
+  currentOs = initialOs;
+
+  applyLocale(initialLocale);
+})();
+</script>
+</body>
+</html>
